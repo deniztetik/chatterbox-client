@@ -60,9 +60,11 @@ form input[type=text] {
 }
 
 .chat {
+    /*width: 500px;*/
     padding: 5px;
     margin-bottom: 5px;
     background-color: #eee;
+    /*text-align: left;*/
 }
 
 .chat .username {
