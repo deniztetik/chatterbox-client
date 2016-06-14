@@ -5,7 +5,7 @@
   //
 
 
-var app = {messages: [], room: [], template: undefined};
+var app = {messages: [], rooms: {}, friends: {}, template: undefined};
 
 app.init = function() {
   app.template = $(".template").clone();
@@ -13,31 +13,38 @@ app.init = function() {
   app.fetch();
   refreshMessages();
   submitMessage();
+  app.changeRoom("Newroom")
   roomFilter();
-  // app.displayMessages();
-
 };
 
 app.send = function(message) {
+  console.log(message);
   $.ajax('https://api.parse.com/1/classes/chatterbox', {
     type: "POST",
     contentType: "application/json",
     dataType: "json",
     data: JSON.stringify(message),
-    success: function() { console.log("success") },
+    success: function(data) { console.log(data) },
     error: function() { console.log("error") }
   });
 };
 
 app.fetch = function() {
-  $.get('https://api.parse.com/1/classes/chatterbox').then(
-    function(data) {
+  var temp = $("#roomSelector").val();
+  $.ajax('https://api.parse.com/1/classes/chatterbox', {
+    type: "GET",
+    data: { order: "-createdAt" },
+    success: function(data) {
       app.messages = data.results;
       app.displayMessages();
-    }, function() {
-      console.log("fetch failed!");
+      app.populateRooms();
+      app.changeRoom(temp);
+      $("#roomSelector").val(temp);
+      friendListener();
+    },
+    error: function() { console.log("error") }
   });
-};
+}
 
 app.clearMessages = function() {
   app.messages = [];
@@ -49,16 +56,20 @@ app.displayMessages = function() {
     var $message = app.template.clone();
     $message.find(".username").text(item.username);
     $message.find(".message").text(item.text);
-    $message.addClass($("#roomSelector").val());
+    $message.addClass(item.roomname);
     $("#chats").append($message);
+    if (app.friends[item.username]) {
+      $message.css("font-weight", "bold");
+    }
   });
 };
 
-app.addMessage = function(text) {
+app.addMessage = function(text, room) {
+  room = room || $("#roomSelector").val();
   var message = {
     username: document.location.search.slice(10).split("%20").join(" "),
     text: text,
-    roomname: $("#roomSelector").val()
+    roomname: room
   }
   var $message = app.template.clone();
   $message.find(".username").text(message.username);
@@ -70,15 +81,28 @@ app.addMessage = function(text) {
 app.addRoom = function() {};
 
 
-app.addFriend = function() {};
+app.addFriend = function(username) {
+  app.friends[username] = true;
+};
 
 app.handleSubmit = function() {};
 
 app.changeRoom = function(room) {
-  $("#chats").filter(function() {
-   return $(this).attr("class")!== room})
-  }).hide();
-}
+  $("#chats").children().hide();
+  $("#chats > ." + room).show();
+};
 
+app.populateRooms = function() {
+  $("#roomSelector").empty();
+  $("#roomSelector").append($.parseHTML("<option>New_Room</option>"))
+  app.messages.forEach(function(item) {
+    app.rooms[item.roomname] = true;
+  });
+  for (var key in app.rooms) {
+      $temp = $("#roomSelector :first-child").clone();
+      $temp.text(key);
+      $temp.appendTo($("#roomSelector"));
+  }
+}
 
 $(document).ready(app.init);
